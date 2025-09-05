@@ -3,6 +3,6 @@
   "version": "1.0.0",
   "type": "module",
   "dependencies": {
-    "yt-dlp-exec": "^3.0.0"
+    "youtube-dl-exec": "^3.0.25"
   }
 }
