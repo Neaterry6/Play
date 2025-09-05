@@ -1,8 +1,10 @@
 {
   "version": 2,
-  "builds": [
-    { "src": "api/play.js", "use": "@vercel/node" }
-  ],
+  "functions": {
+    "api/*.js": {
+      "runtime": "nodejs20.x"
+    }
+  },
   "routes": [
     { "src": "/api/play", "dest": "/api/play.js" }
   ]
