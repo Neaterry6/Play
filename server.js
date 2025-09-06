@@ -9,7 +9,7 @@ const YTDLP_PATH = path.join(__dirname, "bin", "yt-dlp");
 
 app.get("/play", (req, res) => {
   const query = req.query.q;
-  const type = req.query.type || "video"; // "audio" | "video"
+  const type = req.query.type || "video";
 
   if (!query) {
     return res.status(400).json({ error: "Missing ?q=search term" });
@@ -34,8 +34,12 @@ app.get("/play", (req, res) => {
 
   execFile(YTDLP_PATH, args, (err, stdout, stderr) => {
     if (err) {
-      console.error("yt-dlp error:", stderr);
-      return res.status(500).json({ error: "yt-dlp failed" });
+      return res.status(500).json({
+        error: "yt-dlp failed",
+        stderr: stderr.toString(),
+        stdout: stdout.toString(),
+        args
+      });
     }
 
     try {
@@ -49,7 +53,10 @@ app.get("/play", (req, res) => {
         type
       });
     } catch (e) {
-      res.status(500).json({ error: "Failed to parse yt-dlp output" });
+      res.status(500).json({
+        error: "Failed to parse yt-dlp output",
+        raw: stdout.toString()
+      });
     }
   });
 });
