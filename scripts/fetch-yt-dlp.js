@@ -1,35 +1,62 @@
-// Fetch yt-dlp binary at build time using GitHub token
+// scripts/fetch-yt-dlp.js
+const https = require("https");
 const fs = require("fs");
 const path = require("path");
-const axios = require("axios");
 
 const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
-if (!GITHUB_TOKEN) {
-  console.error("❌ Missing GITHUB_TOKEN env var in Render settings");
-  process.exit(1);
+const OUTPUT_PATH = path.join(__dirname, "..", "bin", "yt-dlp");
+
+// Ensure bin dir
+fs.mkdirSync(path.dirname(OUTPUT_PATH), { recursive: true });
+
+function fetchLatestRelease() {
+  return new Promise((resolve, reject) => {
+    const options = {
+      hostname: "api.github.com",
+      path: "/repos/yt-dlp/yt-dlp/releases/latest",
+      headers: {
+        "User-Agent": "yt-dlp-fetcher",
+        "Authorization": GITHUB_TOKEN ? `token ${GITHUB_TOKEN}` : undefined
+      }
+    };
+
+    https.get(options, (res) => {
+      let data = "";
+      res.on("data", (chunk) => (data += chunk));
+      res.on("end", () => {
+        if (res.statusCode !== 200) {
+          return reject(new Error(`GitHub API error: ${res.statusCode} - ${data}`));
+        }
+        resolve(JSON.parse(data));
+      });
+    }).on("error", reject);
+  });
 }
 
-const binDir = path.join(__dirname, "..", "bin");
-if (!fs.existsSync(binDir)) fs.mkdirSync(binDir);
-
-const out = path.join(binDir, "yt-dlp");
-const url = "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp";
+function downloadBinary(url) {
+  return new Promise((resolve, reject) => {
+    const file = fs.createWriteStream(OUTPUT_PATH, { mode: 0o755 });
+    https.get(url, (res) => {
+      if (res.statusCode !== 200) {
+        return reject(new Error(`Download failed: ${res.statusCode}`));
+      }
+      res.pipe(file);
+      file.on("finish", () => file.close(resolve));
+    }).on("error", reject);
+  });
+}
 
 (async () => {
   try {
-    console.log("⬇️ Downloading yt-dlp...");
-    const resp = await axios.get(url, {
-      responseType: "arraybuffer",
-      headers: {
-        Authorization: `token ${GITHUB_TOKEN}`,
-        "User-Agent": "ytplay-fetch"
-      }
-    });
-    fs.writeFileSync(out, resp.data);
-    fs.chmodSync(out, "755");
-    console.log("✅ yt-dlp ready:", out);
-  } catch (e) {
-    console.error("Download failed:", e.message);
+    console.log("Fetching latest yt-dlp release...");
+    const release = await fetchLatestRelease();
+    const asset = release.assets.find(a => a.name === "yt-dlp");
+    if (!asset) throw new Error("yt-dlp binary not found in release assets");
+    console.log(`Downloading yt-dlp from ${asset.browser_download_url}`);
+    await downloadBinary(asset.browser_download_url);
+    console.log("yt-dlp downloaded successfully.");
+  } catch (err) {
+    console.error("Failed to fetch yt-dlp:", err);
     process.exit(1);
   }
 })();
