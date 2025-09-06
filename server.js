@@ -1,7 +1,7 @@
 import express from "express";
-import youtubedl from "youtube-dl-exec";
-import fs from "fs";
+import { create } from "youtube-dl-exec";
 
+const youtubedl = create("./bin/yt-dlp"); // use our fetched binary
 const app = express();
 const PORT = process.env.PORT || 3000;
 
@@ -34,7 +34,7 @@ app.get("/play", async (req, res) => {
     }
 
     if (url) {
-      // ⬇️ Get audio or video URL
+      // ⬇️ Download URL
       let options = {
         dumpSingleJson: true,
         noCheckCertificates: true,
@@ -49,15 +49,6 @@ app.get("/play", async (req, res) => {
       }
 
       const info = await youtubedl(url, options);
-
-      // Clean up (clear temp files if any)
-      if (info.requested_downloads) {
-        info.requested_downloads.forEach(d => {
-          if (d._filename && fs.existsSync(d._filename)) {
-            fs.unlinkSync(d._filename);
-          }
-        });
-      }
 
       return res.json({
         creator: "Broken Vzn",
@@ -74,4 +65,4 @@ app.get("/play", async (req, res) => {
   }
 });
 
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
