@@ -1,22 +1,23 @@
-// scripts/fetch-yt-dlp.js (CommonJS)
+// Fetch yt-dlp binary at build time using GitHub token
 const fs = require("fs");
 const path = require("path");
 const axios = require("axios");
 
-const GITHUB_TOKEN = process.env.GITHUB_TOKEN || "";
+const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
 if (!GITHUB_TOKEN) {
-  console.error("Missing GITHUB_TOKEN env var — aborting download.");
+  console.error("❌ Missing GITHUB_TOKEN env var in Render settings");
   process.exit(1);
 }
 
 const binDir = path.join(__dirname, "..", "bin");
 if (!fs.existsSync(binDir)) fs.mkdirSync(binDir);
+
 const out = path.join(binDir, "yt-dlp");
 const url = "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp";
 
 (async () => {
   try {
-    console.log("Downloading yt-dlp to", out);
+    console.log("⬇️ Downloading yt-dlp...");
     const resp = await axios.get(url, {
       responseType: "arraybuffer",
       headers: {
@@ -26,9 +27,9 @@ const url = "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp";
     });
     fs.writeFileSync(out, resp.data);
     fs.chmodSync(out, "755");
-    console.log("yt-dlp downloaded.");
+    console.log("✅ yt-dlp ready:", out);
   } catch (e) {
-    console.error("Failed to download yt-dlp:", e.message || e);
+    console.error("Download failed:", e.message);
     process.exit(1);
   }
 })();
