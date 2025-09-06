@@ -1,66 +1,89 @@
-const express = require("express");
-const { execFile } = require("child_process");
-const path = require("path");
-const fs = require("fs");
+import express from "express";
+import { spawn } from "child_process";
+import path from "path";
+import fs from "fs";
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const YTDLP_PATH = path.join(__dirname, "bin", "yt-dlp");
 
-app.get("/play", (req, res) => {
+// Path to yt-dlp binary (in bin folder)
+const YT_DLP = path.join(process.cwd(), "bin", "yt-dlp");
+
+// Path to cookies.txt (optional)
+const COOKIES_PATH = path.join(process.cwd(), "cookies.txt");
+
+// Middleware
+app.use(express.json());
+
+// --- Search + Download Endpoint ---
+app.get("/api/yt", async (req, res) => {
   const query = req.query.q;
-  const type = req.query.type || "video";
+  const format = req.query.format || "best"; // video/audio/best
 
   if (!query) {
-    return res.status(400).json({ error: "Missing ?q=search term" });
+    return res.status(400).json({ error: "Missing query ?q=" });
   }
 
-  if (!fs.existsSync(YTDLP_PATH)) {
-    return res.status(500).json({ error: "yt-dlp binary missing" });
-  }
+  try {
+    let args = [
+      `ytsearch1:${query}`,
+      "--dump-json",
+      "--no-check-certificate",
+      "--no-playlist"
+    ];
 
-  const args = [
-    `ytsearch1:${query}`,
-    "--dump-json",
-    "--no-check-certificate",
-    "--no-playlist"
-  ];
-
-  if (type === "audio") {
-    args.push("-f", "bestaudio");
-  } else {
-    args.push("-f", "best");
-  }
-
-  execFile(YTDLP_PATH, args, (err, stdout, stderr) => {
-    if (err) {
-      return res.status(500).json({
-        error: "yt-dlp failed",
-        stderr: stderr.toString(),
-        stdout: stdout.toString(),
-        args
-      });
+    // Add cookies if file exists
+    if (fs.existsSync(COOKIES_PATH)) {
+      args.push(`--cookies=${COOKIES_PATH}`);
     }
 
-    try {
-      const info = JSON.parse(stdout);
-      res.json({
-        creator: "Broken Vzn",
-        title: info.title,
-        url: info.webpage_url,
-        thumbnail: info.thumbnail,
-        download: info.url,
-        type
-      });
-    } catch (e) {
-      res.status(500).json({
-        error: "Failed to parse yt-dlp output",
-        raw: stdout.toString()
-      });
+    // Format options
+    if (format === "audio") {
+      args.push("-f", "bestaudio");
+    } else if (format === "video") {
+      args.push("-f", "bestvideo+bestaudio");
     }
-  });
+
+    const yt = spawn(YT_DLP, args);
+
+    let output = "";
+    let errorOutput = "";
+
+    yt.stdout.on("data", (data) => {
+      output += data.toString();
+    });
+
+    yt.stderr.on("data", (data) => {
+      errorOutput += data.toString();
+    });
+
+    yt.on("close", (code) => {
+      if (code === 0) {
+        try {
+          const json = JSON.parse(output);
+          return res.json({
+            title: json.title,
+            url: json.url || json.webpage_url,
+            thumbnail: json.thumbnail,
+            duration: json.duration,
+            channel: json.channel,
+            format
+          });
+        } catch (err) {
+          return res.status(500).json({ error: "Failed to parse yt-dlp output" });
+        }
+      } else {
+        return res.status(500).json({
+          error: "yt-dlp failed",
+          details: errorOutput
+        });
+      }
+    });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
 });
 
 app.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
+  console.log(`🚀 Server running on http://localhost:${PORT}`);
 });
