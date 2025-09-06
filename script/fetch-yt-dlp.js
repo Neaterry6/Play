@@ -1,43 +1,34 @@
-// scripts/fetch-yt-dlp.js
-const { execSync } = require("child_process");
+// scripts/fetch-yt-dlp.js (CommonJS)
 const fs = require("fs");
 const path = require("path");
 const axios = require("axios");
 
-// --- CONFIG ---
-const GITHUB_TOKEN = process.env.GITHUB_TOKEN; // <-- Set this in Render Dashboard
-const BINARY_URL = "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp";
+const GITHUB_TOKEN = process.env.GITHUB_TOKEN || "";
+if (!GITHUB_TOKEN) {
+  console.error("Missing GITHUB_TOKEN env var — aborting download.");
+  process.exit(1);
+}
 
-// Ensure bin folder exists
 const binDir = path.join(__dirname, "..", "bin");
 if (!fs.existsSync(binDir)) fs.mkdirSync(binDir);
+const out = path.join(binDir, "yt-dlp");
+const url = "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp";
 
-// Target file
-const ytDlpPath = path.join(binDir, "yt-dlp");
-
-// Download function
-async function fetchBinary() {
+(async () => {
   try {
-    console.log("⬇️ Fetching yt-dlp binary...");
-
-    const response = await axios({
-      url: BINARY_URL,
-      method: "GET",
+    console.log("Downloading yt-dlp to", out);
+    const resp = await axios.get(url, {
       responseType: "arraybuffer",
       headers: {
         Authorization: `token ${GITHUB_TOKEN}`,
-        "User-Agent": "yt-dlp-fetch-script"
+        "User-Agent": "ytplay-fetch"
       }
     });
-
-    fs.writeFileSync(ytDlpPath, response.data);
-    fs.chmodSync(ytDlpPath, "755");
-
-    console.log("✅ yt-dlp binary downloaded successfully.");
-  } catch (err) {
-    console.error("❌ Failed to fetch yt-dlp:", err.message);
+    fs.writeFileSync(out, resp.data);
+    fs.chmodSync(out, "755");
+    console.log("yt-dlp downloaded.");
+  } catch (e) {
+    console.error("Failed to download yt-dlp:", e.message || e);
     process.exit(1);
   }
-}
-
-fetchBinary();
+})();
