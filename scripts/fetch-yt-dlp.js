@@ -1,6 +1,7 @@
 const fs = require("fs");
 const path = require("path");
 const axios = require("axios");
+const { execSync } = require("child_process");
 
 const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
 const url = "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp";
@@ -13,15 +14,14 @@ const outFile = path.join(outDir, "yt-dlp");
 
     const response = await axios.get(url, {
       responseType: "arraybuffer",
-      headers: GITHUB_TOKEN
-        ? { Authorization: `token ${GITHUB_TOKEN}` }
-        : {}
+      headers: GITHUB_TOKEN ? { Authorization: `token ${GITHUB_TOKEN}` } : {}
     });
 
-    fs.writeFileSync(outFile, response.data, { mode: 0o755 });
-    console.log("yt-dlp binary downloaded successfully ✅");
+    fs.writeFileSync(outFile, response.data);
+    execSync(`chmod +x ${outFile}`);  // 👈 ensure executable
+    console.log("✅ yt-dlp binary downloaded and made executable");
   } catch (err) {
-    console.error("Failed to fetch yt-dlp binary ❌", err.message);
+    console.error("❌ Failed to fetch yt-dlp binary:", err.message);
     process.exit(1);
   }
 })();
