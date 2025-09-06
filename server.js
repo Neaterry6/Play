@@ -1,6 +1,7 @@
 const express = require("express");
 const { execFile } = require("child_process");
 const path = require("path");
+const fs = require("fs");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -8,19 +9,23 @@ const YTDLP_PATH = path.join(__dirname, "bin", "yt-dlp");
 
 app.get("/play", (req, res) => {
   const query = req.query.q;
-  const type = req.query.type || "video"; // "video" | "audio"
+  const type = req.query.type || "video"; // "audio" | "video"
 
   if (!query) {
     return res.status(400).json({ error: "Missing ?q=search term" });
   }
 
-  // search on YouTube and fetch JSON
+  if (!fs.existsSync(YTDLP_PATH)) {
+    return res.status(500).json({ error: "yt-dlp binary missing" });
+  }
+
   const args = [
-    "ytsearch1:" + query,
-    "--dump-json"
+    `ytsearch1:${query}`,
+    "--dump-json",
+    "--no-check-certificate",
+    "--no-playlist"
   ];
 
-  // add format flags
   if (type === "audio") {
     args.push("-f", "bestaudio");
   } else {
@@ -40,7 +45,7 @@ app.get("/play", (req, res) => {
         title: info.title,
         url: info.webpage_url,
         thumbnail: info.thumbnail,
-        download: info.url, // direct downloadable link
+        download: info.url,
         type
       });
     } catch (e) {
