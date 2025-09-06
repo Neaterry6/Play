@@ -1,0 +1,9 @@
+services:
+  - type: web
+    name: yt-play-api
+    env: node
+    buildCommand: "yarn install"
+    startCommand: "yarn start"
+    envVars:
+      - key: GITHUB_TOKEN
+        sync: false   # you’ll set this in Render dashboard
