@@ -14,9 +14,10 @@
     "api",
     "render"
   ],
-  "author": "broken Vzn",
+  "author": "Broken Vzn",
   "license": "MIT",
   "dependencies": {
-    "express": "^4.19.2"
+    "express": "^4.19.2",
+    "axios": "^1.6.7"
   }
 }
